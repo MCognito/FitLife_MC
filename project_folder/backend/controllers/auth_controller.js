@@ -199,7 +199,7 @@ const register = async (req, res) => {
     const sanitizedEmail = email.toLowerCase().trim();
 
     console.log(
-      `Attempting to register user with email: ${sanitizedEmail}, code: ${code}`
+      `Attempting to register user with email: code: ${code}`
     );
 
     // Validate password strength before checking verification code
@@ -216,7 +216,7 @@ const register = async (req, res) => {
     // Check if verification code exists and is valid
     if (!verificationCodes.has(sanitizedEmail)) {
       console.log(
-        `No verification code found for ${sanitizedEmail} during registration`
+        `No verification code found during registration`
       );
 
       // Log all current verification codes for debugging
@@ -238,7 +238,7 @@ const register = async (req, res) => {
 
     const storedData = verificationCodes.get(sanitizedEmail);
     console.log(
-      `Stored code for ${sanitizedEmail} during registration: ${
+      `Stored code during registration: ${
         storedData.code
       }, expires at: ${new Date(storedData.expiresAt).toISOString()}`
     );
@@ -246,7 +246,7 @@ const register = async (req, res) => {
     // Check if the code has expired
     if (Date.now() > storedData.expiresAt) {
       console.log(
-        `Verification code for ${sanitizedEmail} has expired during registration`
+        `Verification code has expired during registration`
       );
       verificationCodes.delete(sanitizedEmail); // Clean up expired code
       return res.status(400).json({

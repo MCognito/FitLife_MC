@@ -40,7 +40,7 @@ class AuthHandlers {
       // Get the AuthViewModel instance
       final authViewModel =
           provider.Provider.of<AuthViewModel>(context, listen: false);
-      print("Attempting login with email: $email");
+      print("Attempting login");
       final success = await authViewModel.login(email, password);
 
       // Close loading indicator

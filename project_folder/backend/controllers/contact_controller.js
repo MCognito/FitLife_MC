@@ -35,7 +35,7 @@ const sendContactEmail = async (req, res) => {
   const reference = generateReference(email, name);
 
   try {
-    console.log("📩 Sending confirmation email to:", email);
+    console.log("📩 Sending confirmation email");
 
     // Define sender with custom display name
     const sender = `"FitLife Support" <${process.env.SMTP_EMAIL}>`;
@@ -157,7 +157,7 @@ FitLife Team`,
       `,
     });
 
-    console.log("✅ Confirmation email sent:", userMailInfo.response);
+    console.log("✅ Confirmation email sent successfully");
 
     // 2️⃣ Send Inquiry to Admin (Service Email)
     console.log(
@@ -293,7 +293,7 @@ Please refer to the reference number when responding.`,
       `,
     });
 
-    console.log("✅ Inquiry email sent to admin:", adminMailInfo.response);
+    console.log("✅ Inquiry email sent to admin successfully");
 
     res.json({ success: true, message: "Emails sent successfully!" });
   } catch (error) {

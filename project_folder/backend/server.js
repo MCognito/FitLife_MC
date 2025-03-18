@@ -16,6 +16,7 @@ const goalRoutes = require("./routes/goal_routes");
 const contactRoutes = require("./routes/contact_routes");
 const mongoose = require("mongoose");
 const axios = require("axios");
+const path = require("path");
 
 const app = express();
 
@@ -36,6 +37,20 @@ app.use("/api/streaks", streakRoutes);
 app.use("/api/user-scores", userScoreRoutes);
 app.use("/api/goals", goalRoutes);
 app.use("/api", contactRoutes);
+
+// Serve Flutter Web App static files
+app.use(express.static(path.join(__dirname, "public")));
+
+
+app.get("*", (req, res) => {
+  // Only handle non-API routes with this catch-all
+  if (!req.path.startsWith("/api/")) {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
+  } else {
+    // Let API routes fall through to 404 if not found
+    res.status(404).json({ error: "API endpoint not found" });
+  }
+});
 
 app.get("/", (req, res) => res.send("Welcome to the FitLife API!"));
 

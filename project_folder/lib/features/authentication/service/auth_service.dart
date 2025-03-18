@@ -96,7 +96,7 @@ class AuthService {
       // Convert email to lowercase
       final sanitizedEmail = email.toLowerCase().trim();
 
-      print("Attempting login with email: $sanitizedEmail");
+      print("Attempting login");
       final response = await http.post(
         Uri.parse("$baseUrl/login"),
         headers: {"Content-Type": "application/json"},
@@ -156,8 +156,7 @@ class AuthService {
       // Convert email to lowercase
       final sanitizedEmail = email.toLowerCase().trim();
 
-      print(
-          "Sending verification request for email: $sanitizedEmail with code: $code");
+      print("Sending verification request");
 
       final response = await http.post(
         Uri.parse("$baseUrl/verify-code"),
