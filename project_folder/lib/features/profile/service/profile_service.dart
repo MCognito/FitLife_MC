@@ -1,57 +1,19 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
 import '../../authentication/service/token_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../config/api_config.dart';
 
 class ProfileService {
   // Dynamic base URL method
   static Future<String> getBaseUrl() async {
-    if (kIsWeb) {
-      return "http://localhost:5000/api/users"; // Web (Chrome, Edge, etc.)
-    } else if (Platform.isAndroid) {
-      bool isEmulator = await _isAndroidEmulator();
-      return isEmulator
-          ? "http://10.0.2.2:5000/api/users" // Android Emulator
-          : "http://192.168.1.38:5000/api/users"; // Default for other Android devices
-    } else if (Platform.isIOS) {
-      return "http://localhost:5000/api/users"; // iOS Simulator
-    } else {
-      return "http://192.168.1.38:5000/api/users"; // Default for other devices
-    }
+    return '${ApiConfig.baseUrl}/api/users';
   }
 
   // Dynamic base URL method for auth
   static Future<String> getAuthBaseUrl() async {
-    if (kIsWeb) {
-      return "http://localhost:5000/api/auth"; // Web (Chrome, Edge, etc.)
-    } else if (Platform.isAndroid) {
-      bool isEmulator = await _isAndroidEmulator();
-      return isEmulator
-          ? "http://10.0.2.2:5000/api/auth" // Android Emulator
-          : "http://192.168.1.38:5000/api/auth"; // Default for other Android devices
-    } else if (Platform.isIOS) {
-      return "http://localhost:5000/api/auth"; // iOS Simulator
-    } else {
-      return "http://192.168.1.38:5000/api/auth"; // Default for other devices
-    }
-  }
-
-  // Check if the app is running on an Android emulator
-  static Future<bool> _isAndroidEmulator() async {
-    final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-
-    // Check common emulator properties
-    bool isEmulator = androidInfo.isPhysicalDevice == false ||
-        androidInfo.hardware.contains("ranchu") ||
-        androidInfo.hardware.contains("goldfish") ||
-        androidInfo.fingerprint.contains("generic");
-
-    return isEmulator;
+    return '${ApiConfig.baseUrl}/api/auth';
   }
 
   // Get auth headers with JWT token

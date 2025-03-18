@@ -1,35 +1,15 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:device_info_plus/device_info_plus.dart';
 import '../models/goal.dart';
 import '../../authentication/service/token_manager.dart';
+import '../../../config/api_config.dart';
 
 class GoalService {
   // Dynamic base URL method
   static Future<String> getBaseUrl() async {
-    if (kIsWeb) {
-      return "http://localhost:5000/api/goals"; // Web (Chrome, Edge, etc.)
-    } else if (Platform.isAndroid) {
-      bool isEmulator = await _isAndroidEmulator();
-      return isEmulator
-          ? "http://10.0.2.2:5000/api/goals" // Android Emulator
-          : "http://192.168.1.38:5000/api/goals"; // Default for other Android devices
-    } else if (Platform.isIOS) {
-      return "http://localhost:5000/api/goals"; // iOS Simulator
-    } else {
-      return "http://192.168.1.38:5000/api/goals"; // Default for other devices
-    }
+    return '${ApiConfig.baseUrl}/api/goals';
   }
-
-  // Check if running on Android emulator
-  static Future<bool> _isAndroidEmulator() async {
-    final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-    return !androidInfo.isPhysicalDevice;
-  }
-
+  
   // Get authentication headers
   Future<Map<String, String>> _getHeaders() async {
     final token = await TokenManager.getToken();

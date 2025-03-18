@@ -1,40 +1,13 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
 import '../../authentication/service/token_manager.dart';
 import 'streak_service.dart';
+import '../../../config/api_config.dart';
 
 class WorkoutService {
   // Dynamic base URL method
   static Future<String> getBaseUrl() async {
-    if (kIsWeb) {
-      return "http://localhost:5000/api/workouts"; // Web (Chrome, Edge, etc.)
-    } else if (Platform.isAndroid) {
-      bool isEmulator = await _isAndroidEmulator();
-      return isEmulator
-          ? "http://10.0.2.2:5000/api/workouts" // Android Emulator
-          : "http://192.168.1.38:5000/api/workouts"; // Default for other Android devices
-    } else if (Platform.isIOS) {
-      return "http://localhost:5000/api/workouts"; // iOS Simulator
-    } else {
-      return "http://192.168.1.38:5000/api/workouts"; // Default for other devices
-    }
-  }
-
-  // Check if the app is running on an Android emulator
-  static Future<bool> _isAndroidEmulator() async {
-    final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-
-    // Check common emulator properties
-    bool isEmulator = androidInfo.isPhysicalDevice == false ||
-        androidInfo.hardware.contains("ranchu") ||
-        androidInfo.hardware.contains("goldfish") ||
-        androidInfo.fingerprint.contains("generic");
-
-    return isEmulator;
+    return '${ApiConfig.baseUrl}/api/workouts';
   }
 
   // Get auth headers with JWT token

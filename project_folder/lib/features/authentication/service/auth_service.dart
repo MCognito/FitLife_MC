@@ -1,45 +1,18 @@
 // This file contains the AuthService class which handles all the authentication requests to the server.
 
-import 'dart:io' show Platform, SocketException;
+import 'dart:io' show SocketException;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:device_info_plus/device_info_plus.dart'; // For device info
-import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'token_manager.dart'; // Import the token manager
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:fitlife/config/api_config.dart';
 // AuthService class is used to handle all the authentication requests to the server.
 // It has three methods: getBaseUrl, login, register, and forgotPassword.
 // The getBaseUrl method is used to get the base URL of the server based on the platform.
 
 class AuthService {
   static Future<String> getBaseUrl() async {
-    if (kIsWeb) {
-      return "http://localhost:5000/api/auth"; // Web (Chrome, Edge, etc.)
-    } else if (Platform.isAndroid) {
-      bool isEmulator = await _isAndroidEmulator();
-      return isEmulator
-          ? "http://10.0.2.2:5000/api/auth" // Android Emulator
-          : "http://192.168.1.38:5000/api/auth"; // Default for other Android devices
-    } else if (Platform.isIOS) {
-      return "http://localhost:5000/api/auth"; // iOS Simulator
-    } else {
-      return "http://192.168.1.38:5000/api/auth"; // Default for other devices
-    }
-  }
-
-  // Check if the app is running on an Android emulator
-  static Future<bool> _isAndroidEmulator() async {
-    final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-
-    // Check common emulator properties
-    bool isEmulator = androidInfo.isPhysicalDevice == false ||
-        androidInfo.hardware.contains("ranchu") ||
-        androidInfo.hardware.contains("goldfish") ||
-        androidInfo.fingerprint.contains("generic");
-
-    return isEmulator;
+    return '${ApiConfig.baseUrl}/api/auth';
   }
 
   // Handle the request and return the response as a Map
