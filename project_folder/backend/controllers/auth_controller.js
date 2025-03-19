@@ -6,6 +6,10 @@ const jwt = require("jsonwebtoken");
 const { createDefaultUserLog } = require("./user_log_controller");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const { model: Workout } = require("../models/workout");
+const { model: UserScore } = require("../models/user_score");
+const { model: Streak } = require("../models/streak");
+const { model: Log } = require("../models/log");
 
 // Store verification codes in memory with expiration times
 const verificationCodes = new Map();
@@ -198,9 +202,7 @@ const register = async (req, res) => {
     // Sanitize email (convert to lowercase and trim)
     const sanitizedEmail = email.toLowerCase().trim();
 
-    console.log(
-      `Attempting to register user with email: code: ${code}`
-    );
+    console.log(`Attempting to register user with email: code: ${code}`);
 
     // Validate password strength before checking verification code
     const passwordRegex =
@@ -215,9 +217,7 @@ const register = async (req, res) => {
 
     // Check if verification code exists and is valid
     if (!verificationCodes.has(sanitizedEmail)) {
-      console.log(
-        `No verification code found during registration`
-      );
+      console.log(`No verification code found during registration`);
 
       // Log all current verification codes for debugging
       console.log("Current verification codes during registration");
@@ -245,9 +245,7 @@ const register = async (req, res) => {
 
     // Check if the code has expired
     if (Date.now() > storedData.expiresAt) {
-      console.log(
-        `Verification code has expired during registration`
-      );
+      console.log(`Verification code has expired during registration`);
       verificationCodes.delete(sanitizedEmail); // Clean up expired code
       return res.status(400).json({
         success: false,
@@ -450,9 +448,7 @@ const sendVerificationCode = async (req, res) => {
       expiresAt: expirationTime,
     });
 
-    console.log(
-      `Verification code generated for ${sanitizedEmail}`
-    );
+    console.log(`Verification code generated for ${sanitizedEmail}`);
     console.log(
       `Verification code will expire at: ${new Date(
         expirationTime
@@ -591,121 +587,79 @@ const verifyCode = async (req, res) => {
 // Delete user account
 const deleteAccount = async (req, res) => {
   try {
-    const userId = req.user.id; // From auth middleware
-
-    // Get the User model
-    const User = model();
-    if (!User) {
-      console.error("User model is not initialized");
-      return res.status(500).json({ error: "Database initialization error" });
-    }
-
-    console.log(`Attempting to delete account`);
-
-    // Delete user account
-    const deletedUser = await User.findByIdAndDelete(userId);
-    if (!deletedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    console.log(`User document deleted from 'users' collection`);
-
-    // Delete user profile
-    try {
-      const userProfileModel = UserProfile();
-      if (userProfileModel) {
-        const deletedProfile = await userProfileModel.findOneAndDelete({
-          user_id: userId,
-        });
-        console.log(
-          `User profile ${
-            deletedProfile ? "deleted" : "not found"
-          } in 'userprofiles' collection`
-        );
-      }
-    } catch (profileErr) {
-      console.error("Error deleting user profile:", profileErr);
-      // Continue with account deletion even if profile deletion fails
-    }
-
-    // Delete user workouts
-    try {
-      const WorkoutModel = require("../models/workout").model();
-      if (WorkoutModel) {
-        const result = await WorkoutModel.deleteMany({ user_id: userId });
-        console.log(
-          `Deleted ${result.deletedCount} workouts from 'workouts' collection`
-        );
-      }
-    } catch (workoutErr) {
-      console.error("Error deleting user workouts:", workoutErr);
-      // Continue with account deletion
-    }
-
-    // Delete user logs
-    try {
-      const UserLogModel = require("../models/user_log").model();
-      if (UserLogModel) {
-        const result = await UserLogModel.deleteMany({ user_id: userId });
-        console.log(
-          `Deleted user logs from 'logs' collection: ${result.deletedCount} documents`
-        );
-      }
-    } catch (logErr) {
-      console.error("Error deleting user logs:", logErr);
-      // Continue with account deletion
-    }
-
-    // Delete user streaks
-    try {
-      const StreakModel = require("../models/streak").model();
-      if (StreakModel) {
-        const result = await StreakModel.deleteMany({ user_id: userId });
-        console.log(
-          `Deleted user streaks from 'streaks' collection: ${result.deletedCount} documents`
-        );
-      }
-    } catch (streakErr) {
-      console.error("Error deleting user streaks:", streakErr);
-      // Continue with account deletion
-    }
-
-    // Delete user scores
-    try {
-      const UserScoreModel = require("../models/user_score").model();
-      if (UserScoreModel) {
-        const result = await UserScoreModel.deleteMany({ user_id: userId });
-        console.log(
-          `Deleted user scores from 'userscores' collection: ${result.deletedCount} documents`
-        );
-      }
-    } catch (scoreErr) {
-      console.error("Error deleting user scores:", scoreErr);
-      // Continue with account deletion
-    }
-
-    // Goals are typically stored within the user profile, but if they're in a separate collection:
-    try {
-      const GoalModel = require("../models/goal").model();
-      if (GoalModel) {
-        const result = await GoalModel.deleteMany({ user_id: userId });
-        console.log(
-          `Deleted user goals from 'goals' collection: ${result.deletedCount} documents`
-        );
-      }
-    } catch (goalErr) {
-      // If goals model doesn't exist or other error
-      console.log(
-        "Note: Goals may be embedded in user profile or goals model not found"
-      );
-    }
+    // Get user ID from the authenticated user (provided by auth middleware)
+    const userId = req.userId;
 
     console.log(
-      `Account deletion completed successfully for user ID: ${userId}`
+      `Attempting to delete account and all data for user: ${userId}`
     );
-    res.status(200).json({ message: "Account deleted successfully" });
-  } catch (err) {
-    console.error("Delete account error:", err);
-    res.status(500).json({ error: err.message });
+
+    // Delete all user data in a specific order
+    // First delete dependent data, then delete the user
+    try {
+      // Get the models
+      const UserModel = model();
+      const WorkoutModel = Workout();
+      const UserScoreModel = UserScore();
+      const StreakModel = Streak();
+      const LogModel = Log();
+
+      // Verify the user exists before attempting deletion
+      const userExists = await UserModel.findById(userId);
+      if (!userExists) {
+        return res.status(404).json({
+          success: false,
+          message: "User account not found",
+        });
+      }
+
+      // 1. Delete user's workouts
+      const workoutResult = await WorkoutModel.deleteMany({ user_id: userId });
+      console.log(`Deleted ${workoutResult.deletedCount} workout records`);
+
+      // 2. Delete user's scores
+      const scoreResult = await UserScoreModel.deleteMany({ user_id: userId });
+      console.log(`Deleted ${scoreResult.deletedCount} score records`);
+
+      // 3. Delete user's streaks
+      const streakResult = await StreakModel.deleteMany({ user_id: userId });
+      console.log(`Deleted ${streakResult.deletedCount} streak records`);
+
+      // 4. Delete user's logs
+      const logResult = await LogModel.deleteMany({ user_id: userId });
+      console.log(`Deleted ${logResult.deletedCount} log records`);
+
+      // 5. Finally delete the user account
+      const userResult = await UserModel.findByIdAndDelete(userId);
+
+      if (!userResult) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to delete user account",
+        });
+      }
+
+      console.log(`Successfully deleted user account: ${userId}`);
+
+      return res.json({
+        success: true,
+        message: "Account and all associated data deleted successfully",
+      });
+    } catch (deleteError) {
+      console.error("Error while deleting user data:", deleteError);
+      return res.status(500).json({
+        success: false,
+        message: "Error deleting account data",
+        error: deleteError.message,
+      });
+    }
+  } catch (error) {
+    console.error("Error in deleteAccount endpoint:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error processing delete account request",
+      error: error.message,
+    });
   }
 };
 

@@ -6,6 +6,7 @@ import '../models/user_profile.dart';
 import '../../authentication/service/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../main.dart'; // Import for themeModeProvider
+import 'dart:convert';
 
 class SettingsViewModel extends ChangeNotifier {
   final ProfileService _profileService = ProfileService();
@@ -209,11 +210,24 @@ class SettingsViewModel extends ChangeNotifier {
 
     try {
       // Call the delete account API
-      await _authService.deleteAccount();
+      final result = await _authService.deleteAccount();
 
-      _isLoading = false;
-      notifyListeners();
-      return true;
+      // Check if deletion was successful
+      if (result['success'] == true) {
+        // Clear local preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear(); // Remove all user data
+
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        // Handle API error
+        _errorMessage = result['error'] ?? 'Failed to delete account';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
     } catch (e) {
       _errorMessage = 'Failed to delete account: $e';
       _isLoading = false;

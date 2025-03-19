@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../viewmodel/settings_viewmodel.dart';
 import '../../../../main.dart';
 import 'change_password_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Provider for the SettingsViewModel
 final settingsViewModelProvider =
@@ -31,13 +32,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _deleteAccount() async {
-    // Show confirmation dialog
+    // Show confirmation dialog with more explanation
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Account'),
         content: const Text(
-          'Are you sure you want to delete your account? This action cannot be undone.',
+          'Are you sure you want to delete your account? This action will:\n\n'
+          '• Permanently delete your account\n'
+          '• Remove all your workouts and progress\n'
+          '• Delete your scores and achievements\n'
+          '• Remove all logs and streaks\n'
+          '• Cannot be undone',
         ),
         actions: [
           TextButton(
@@ -46,7 +52,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete My Account'),
           ),
         ],
       ),
@@ -56,27 +65,111 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return;
     }
 
-    final viewModel = ref.read(settingsViewModelProvider);
-    final success = await viewModel.deleteAccount();
+    // Show loading dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Deleting account...\nThis may take a moment.'),
+            ],
+          ),
+        ),
+      );
+    }
 
-    if (success && mounted) {
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account deleted successfully')),
-      );
+    try {
+      final viewModel = ref.read(settingsViewModelProvider);
+      final success = await viewModel.deleteAccount();
 
-      // Navigate to login screen
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/login',
-        (route) => false,
-      );
-    } else if (mounted) {
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('Failed to delete account: ${viewModel.errorMessage}')),
-      );
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (success && mounted) {
+        // Clear all app data and cache
+        await _clearAllAppData();
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your account has been permanently deleted'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate to login screen
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/login',
+          (route) => false,
+        );
+      } else if (mounted) {
+        // Show detailed error message
+        String errorMessage = viewModel.errorMessage ?? 'Unknown error';
+        String displayMessage = 'Failed to delete account';
+
+        if (errorMessage.toLowerCase().contains('network')) {
+          displayMessage =
+              'Network error. Please check your connection and try again.';
+        } else if (errorMessage.toLowerCase().contains('not found')) {
+          displayMessage =
+              'Account not found. It may have been already deleted.';
+        } else if (errorMessage.toLowerCase().contains('unauthorized') ||
+            errorMessage.toLowerCase().contains('token')) {
+          displayMessage = 'Authentication error. Please log in again and try.';
+        } else {
+          displayMessage = 'Failed to delete account: $errorMessage';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(displayMessage),
+            duration: const Duration(seconds: 5),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _deleteAccount,
+              textColor: Colors.white,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+
+        // Show general error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An unexpected error occurred: $e'),
+            duration: const Duration(seconds: 5),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Helper method to clear all app data
+  Future<void> _clearAllAppData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      // Clear any cached auth data
+      final authService = AuthService();
+      await authService.logout();
+
+      print('All app data cleared successfully');
+    } catch (e) {
+      print('Error clearing app data: $e');
     }
   }
 
@@ -162,6 +255,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget _buildPreferencesSection(BuildContext context) {
     final viewModel = ref.read(settingsViewModelProvider);
 
+    // Helper function to show snackbars with proper cleanup
+    void showSnackBar(String message, {Color backgroundColor = Colors.blue}) {
+      // Clear any existing snackbars first
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      // Then show the new snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: backgroundColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -176,6 +284,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           Icons.dark_mode,
           viewModel.darkMode,
           (value) {
+            // Clear any existing snackbars before theme change
+            ScaffoldMessenger.of(context).clearSnackBars();
+
             viewModel.setDarkMode(value);
             // Apply theme change immediately
             ref.read(themeModeProvider.notifier).state =
@@ -191,14 +302,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           Icons.notifications,
           viewModel.notifications,
           (value) {
-            // Show "to be implemented" message
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Push notifications feature will be implemented in a future update'),
-                duration: Duration(seconds: 3),
-              ),
-            );
+            // Set value without showing snackbar
             viewModel.setNotifications(value);
           },
         ),
@@ -208,14 +312,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           Icons.volume_up,
           viewModel.soundEffects,
           (value) {
-            // Show "to be implemented" message
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Sound effects feature will be implemented in a future update'),
-                duration: Duration(seconds: 3),
-              ),
-            );
+            // Set value without showing snackbar
             viewModel.setSoundEffects(value);
           },
         ),
@@ -248,11 +345,43 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 }).toList(),
                 onChanged: (String? newValue) {
                   if (newValue != null) {
+                    // Set language without showing snackbar
                     viewModel.setLanguage(newValue);
                   }
                 },
               ),
             ),
+          ),
+        ),
+
+        // Save settings button
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () async {
+              try {
+                await viewModel.saveUserPreferences();
+                if (mounted) {
+                  // Show a combined message about saved settings and future implementations
+                  showSnackBar(
+                    'Settings saved successfully. Note that push notifications, sound effects, and language selection will be implemented in a future update.',
+                    backgroundColor: Colors.green,
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  showSnackBar(
+                    'Failed to save settings: $e',
+                    backgroundColor: Colors.red,
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: const Text('Save Settings'),
           ),
         ),
       ],

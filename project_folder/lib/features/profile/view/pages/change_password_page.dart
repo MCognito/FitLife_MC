@@ -149,7 +149,21 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                     _buildPasswordField(
                       controller: _newPasswordController,
                       labelText: "New Password",
-                      validator: _validationViewModel.validatePassword,
+                      validator: (val) {
+                        // First run the standard password validation
+                        final standardValidation =
+                            _validationViewModel.validatePassword(val);
+                        if (standardValidation != null) {
+                          return standardValidation;
+                        }
+
+                        // Then check if new password is same as current password
+                        if (val == _currentPasswordController.text) {
+                          return "New password cannot be the same as your current password";
+                        }
+
+                        return null;
+                      },
                       isDarkMode: isDarkMode,
                     ),
                     const SizedBox(height: 20),

@@ -105,8 +105,7 @@ FitLife is a comprehensive fitness mobile application developed using Flutter. T
 - **Flutter SDK** (latest version)
 - **Dart SDK** (latest version)
 - **Android Studio** or **VS Code** with Flutter extensions
-- **Node.js** and **MongoDB** for backend (currently running locally)
-- **Render** and **MongoDB** for hosting (attempt to host on Render)
+- **Render**, **Node.js** and **MongoDB** for backend and hosting
 
 ### Installation
 

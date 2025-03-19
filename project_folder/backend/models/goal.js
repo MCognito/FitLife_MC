@@ -113,7 +113,32 @@ const goalSchema = new mongoose.Schema(
 goalSchema.methods.getProgressPercentage = function () {
   const totalChange = this.targetValue - this.startValue;
   const currentChange = this.currentValue - this.startValue;
-  return Math.min(100, Math.max(0, (currentChange / totalChange) * 100));
+
+  // For goals where target is less than start (weight loss, etc.)
+  if (totalChange < 0) {
+    // For decreasing goals, progress increases as value decreases
+    // If currentValue <= targetValue, progress is 100%
+    if (this.currentValue <= this.targetValue) {
+      return 100;
+    }
+
+    // Calculate how much progress has been made toward the target
+    const remainingChange = this.currentValue - this.targetValue;
+    const totalAbsChange = Math.abs(totalChange);
+    return Math.min(
+      100,
+      Math.max(0, ((totalAbsChange - remainingChange) / totalAbsChange) * 100)
+    );
+  }
+  // For goals where target is greater than start (weight gain, steps, etc.)
+  else {
+    // If currentValue >= targetValue, progress is 100%
+    if (this.currentValue >= this.targetValue) {
+      return 100;
+    }
+
+    return Math.min(100, Math.max(0, (currentChange / totalChange) * 100));
+  }
 };
 
 // Check if goal is on track

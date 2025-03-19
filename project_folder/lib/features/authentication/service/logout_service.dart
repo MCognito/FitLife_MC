@@ -8,9 +8,36 @@ import '../providers/user_provider.dart';
 /// A service class to handle logout functionality
 /// This ensures all user data is properly cleared when a user logs out
 class LogoutService {
+  /// Shows a confirmation dialog before logging out
+  /// Returns true if the user confirms, false otherwise
+  static Future<bool> showLogoutConfirmation(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Logout'),
+            content: const Text('Are you sure you want to log out?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Logout'),
+              ),
+            ],
+          ),
+        ) ??
+        false; // Default to false if dialog is dismissed
+  }
+
   /// Performs a complete logout, clearing all user data
   /// This method should be called when a user logs out
   static Future<void> performLogout(BuildContext context, WidgetRef ref) async {
+    // Show confirmation dialog first
+    final confirmed = await showLogoutConfirmation(context);
+    if (!confirmed) return;
+
     try {
       // Clear authentication data
       await TokenManager.clearAuthData();
@@ -52,18 +79,28 @@ class LogoutService {
 
       print("All user data cleared during logout");
 
-      // Navigate to login screen and remove all previous routes
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      // Make sure context is still valid
+      if (!context.mounted) return;
 
-      // Show confirmation to user
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Successfully logged out'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      // Navigate to login screen and remove all previous routes
+      await Navigator.of(context)
+          .pushNamedAndRemoveUntil('/login', (route) => false);
+
+      // Show confirmation to user after navigation is complete
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully logged out'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       print("Error during logout: $e");
+
+      // Make sure context is still valid
+      if (!context.mounted) return;
+
       // Still try to navigate to login screen even if there was an error
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     }

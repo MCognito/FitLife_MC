@@ -110,6 +110,12 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
                 onChanged: (String? newValue) {
                   if (newValue != null) {
                     _updateUnit(newValue);
+
+                    // Clear values when changing goal type to prevent validation errors
+                    if (newValue != _type) {
+                      _startValueController.clear();
+                      _targetValueController.clear();
+                    }
                   }
                 },
               ),
@@ -125,9 +131,16 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter a starting value';
                   }
-                  if (double.tryParse(value) == null) {
+
+                  final numValue = double.tryParse(value);
+                  if (numValue == null) {
                     return 'Please enter a valid number';
                   }
+
+                  if (numValue <= 0) {
+                    return 'Starting value must be positive';
+                  }
+
                   return null;
                 },
               ),
@@ -143,9 +156,37 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter a target value';
                   }
-                  if (double.tryParse(value) == null) {
+
+                  final targetValue = double.tryParse(value);
+                  if (targetValue == null) {
                     return 'Please enter a valid number';
                   }
+
+                  if (targetValue <= 0) {
+                    return 'Target value must be positive';
+                  }
+
+                  // Get start value for comparison
+                  final startValue =
+                      double.tryParse(_startValueController.text);
+                  if (startValue == null) {
+                    return 'Please enter a valid starting value first';
+                  }
+
+                  // Validate based on goal type
+                  if (_type == 'Weight Loss' && targetValue >= startValue) {
+                    return 'Target weight must be less than starting weight';
+                  } else if (_type == 'Weight Gain' &&
+                      targetValue <= startValue) {
+                    return 'Target weight must be greater than starting weight';
+                  } else if ((_type == 'Steps' ||
+                          _type == 'Water Intake' ||
+                          _type == 'Exercise Minutes' ||
+                          _type == 'Sleep Hours') &&
+                      targetValue <= startValue) {
+                    return 'Target value must be greater than starting value';
+                  }
+
                   return null;
                 },
               ),
@@ -216,8 +257,16 @@ class _CreateGoalDialogState extends State<CreateGoalDialog> {
     final step = difference / milestoneCount;
     final milestones = <Milestone>[];
 
+    // Check if this is a decreasing goal (like weight loss)
+    final isDecreasingGoal = target < start;
+
     for (var i = 1; i <= milestoneCount; i++) {
-      final value = start + (step * i);
+      // For decreasing goals, milestone values decrease
+      // For increasing goals, milestone values increase
+      final value = isDecreasingGoal
+          ? start - (step * i) // Subtract for decreasing goals
+          : start + (step * i); // Add for increasing goals
+
       milestones.add(
         Milestone(
           value: value,

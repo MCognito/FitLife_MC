@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow your backend domain -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">fitlife-mc.onrender.com</domain>
+    </domain-config>
+    
+    <!-- Base configuration -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

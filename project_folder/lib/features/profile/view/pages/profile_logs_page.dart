@@ -48,6 +48,20 @@ class _ProfileLogsPageState extends ConsumerState<ProfileLogsPage>
   void _addLog(String type) async {
     final viewModel = ref.read(profileLogsViewModelProvider);
 
+    // Validate the value first
+    final value = _valueController.text.trim();
+    final numValue = double.tryParse(value);
+
+    if (numValue == null || numValue <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid positive number'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     // Determine unit based on type
     String unit = '';
     String displayType = type;
@@ -67,7 +81,7 @@ class _ProfileLogsPageState extends ConsumerState<ProfileLogsPage>
         break;
     }
 
-    final result = await viewModel.addLog(type, _valueController.text, unit);
+    final result = await viewModel.addLog(type, value, unit);
 
     if (result == 'success') {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -411,6 +425,7 @@ class _ProfileLogsPageState extends ConsumerState<ProfileLogsPage>
     String hintText = '';
     String buttonText = '';
     IconData icon = Icons.add;
+    final _formKey = GlobalKey<FormState>();
 
     switch (type) {
       case 'weight':
@@ -434,27 +449,51 @@ class _ProfileLogsPageState extends ConsumerState<ProfileLogsPage>
       elevation: 2.0,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _valueController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: hintText,
-                border: const OutlineInputBorder(),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: _valueController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: hintText,
+                  border: const OutlineInputBorder(),
+                  helperText: 'Enter a positive value',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a value';
+                  }
+
+                  final numValue = double.tryParse(value);
+                  if (numValue == null) {
+                    return 'Please enter a valid number';
+                  }
+
+                  if (numValue <= 0) {
+                    return 'Value must be positive';
+                  }
+
+                  return null;
+                },
               ),
-            ),
-            const SizedBox(height: 16.0),
-            ElevatedButton.icon(
-              onPressed: () => _addLog(type),
-              icon: Icon(icon),
-              label: Text(buttonText),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12.0),
+              const SizedBox(height: 16.0),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    _addLog(type);
+                  }
+                },
+                icon: Icon(icon),
+                label: Text(buttonText),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -3,6 +3,7 @@ import '../../models/goal.dart';
 import '../../service/goal_service.dart';
 import '../widgets/goal_card.dart';
 import '../widgets/create_goal_dialog.dart';
+import '../widgets/update_goal_value_dialog.dart';
 import '../../../authentication/service/token_manager.dart';
 
 class ProfileGoalsPage extends StatefulWidget {
@@ -84,37 +85,44 @@ class _ProfileGoalsPageState extends State<ProfileGoalsPage> {
     final originalGoal =
         _goals.firstWhere((g) => g.id == goal.id, orElse: () => goal);
 
-    final result = await showDialog<Goal?>(
-      context: context,
-      builder: (context) => CreateGoalDialog(initialGoal: originalGoal),
-    );
+    // Only update current value - no other fields can be changed
+    final result = await _updateGoalProgress(originalGoal);
 
     if (result != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Goal updated successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  // Method to update just the progress
+  Future<Goal?> _updateGoalProgress(Goal goal) async {
+    // Show the UpdateGoalValueDialog
+    final updatedGoal = await showDialog<Goal>(
+      context: context,
+      builder: (context) => UpdateGoalValueDialog(goal: goal),
+    );
+
+    if (updatedGoal != null) {
       setState(() => _isLoading = true);
       try {
-        // Create updated goal with same ID and userId
-        final updatedGoal = result.copyWith(
-          id: originalGoal.id,
-          userId: originalGoal.userId,
-        );
-
-        await _goalService.updateGoal(updatedGoal);
+        await _goalService.updateGoalProgress(
+            goal.id!, updatedGoal.currentValue);
         await _loadGoals();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Goal updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
       } catch (e) {
-        print('Error updating goal: $e');
+        print('Error updating goal progress: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update goal: $e')),
         );
         setState(() => _isLoading = false);
       }
+      return updatedGoal;
     }
+
+    return null;
   }
 
   @override
@@ -174,10 +182,6 @@ class _ProfileGoalsPageState extends State<ProfileGoalsPage> {
                                   style: TextStyle(fontSize: 18),
                                 ),
                                 const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _createGoal,
-                                  child: const Text('Create Goal'),
-                                ),
                               ],
                             ),
                           )

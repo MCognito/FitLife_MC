@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/goal.dart';
 import 'package:intl/intl.dart';
+import 'update_goal_value_dialog.dart';
 
 class GoalCard extends StatelessWidget {
   final Goal goal;
@@ -77,18 +78,6 @@ class GoalCard extends StatelessWidget {
                     }
                   },
                   itemBuilder: (context) => [
-                    if (onEdit != null &&
-                        (goal.status.toUpperCase() == 'IN_PROGRESS' ||
-                            goal.status == 'In Progress'))
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          leading: Icon(Icons.edit_outlined),
-                          title: Text('Edit Goal'),
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                        ),
-                      ),
                     const PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
@@ -157,11 +146,14 @@ class GoalCard extends StatelessWidget {
                     onPressed: () {
                       showDialog(
                         context: context,
-                        builder: (context) => _UpdateProgressDialog(
-                          currentValue: goal.currentValue,
-                          onUpdate: onProgressUpdate,
+                        builder: (context) => UpdateGoalValueDialog(
+                          goal: goal,
                         ),
-                      );
+                      ).then((updatedGoal) {
+                        if (updatedGoal != null) {
+                          onProgressUpdate(updatedGoal.currentValue);
+                        }
+                      });
                     },
                   ),
               ],
@@ -295,64 +287,5 @@ class GoalCard extends StatelessWidget {
     } else {
       return Colors.amber; // Just started
     }
-  }
-}
-
-class _UpdateProgressDialog extends StatefulWidget {
-  final double currentValue;
-  final Function(double) onUpdate;
-
-  const _UpdateProgressDialog({
-    required this.currentValue,
-    required this.onUpdate,
-  });
-
-  @override
-  State<_UpdateProgressDialog> createState() => _UpdateProgressDialogState();
-}
-
-class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.currentValue.toString());
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Update Progress'),
-      content: TextField(
-        controller: _controller,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(
-          labelText: 'Current Value',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            final value = double.tryParse(_controller.text);
-            if (value != null) {
-              widget.onUpdate(value);
-              Navigator.pop(context);
-            }
-          },
-          child: const Text('Update'),
-        ),
-      ],
-    );
   }
 }
